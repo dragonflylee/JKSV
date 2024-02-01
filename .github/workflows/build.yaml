@@ -1,0 +1,37 @@
+name: JKSV
+
+on:
+  push:
+    tags: ["*"]
+    branches: ["master"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkita64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set workspace permissions
+        run: |
+          git config --system --add safe.directory '*'
+
+      - name: Build JKSV
+        run: make -j$(nproc)
+
+      - name: Set outputs
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Upload Assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: JKSV-${{ steps.vars.outputs.sha_short }}
+          path: |
+            JKSV.nro

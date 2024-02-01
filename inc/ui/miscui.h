@@ -1,8 +1,5 @@
 #pragma once
 
-#include <vector>
-#include <SDL.h>
-
 #include "type.h"
 #include "gfx.h"
 
