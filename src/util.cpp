@@ -1,6 +1,9 @@
 #include <string>
 #include <cstdio>
 #include <ctime>
+#include <sstream>
+#include <fstream>
+#include <iomanip>
 #include <sys/stat.h>
 #include <json-c/json.h>
 
@@ -9,7 +12,7 @@
 #include "gfx.h"
 #include "util.h"
 #include "ui.h"
-#include "curlfuncs.h"
+#include "http.h"
 #include "type.h"
 #include "cfg.h"
 
@@ -31,14 +34,6 @@ void util::replaceStr(std::string& _str, const std::string& _find, const std::st
     size_t pos = 0;
     while((pos = _str.find(_find)) != _str.npos)
         _str.replace(pos, _find.length(), _rep);
-}
-
-//Used to split version tag git
-static void getVersionFromTag(const std::string& tag, unsigned& _year, unsigned& _month, unsigned& _day)
-{
-    _month = strtoul(tag.substr(0, 2).c_str(), NULL, 10);
-    _day = strtoul(tag.substr(3, 5).c_str(), NULL, 10);
-    _year = strtoul(tag.substr(6, 10).c_str(), NULL, 10);
 }
 
 //Missing swkbd config funcs for now
@@ -155,6 +150,12 @@ void util::trimPath(std::string& _path, uint8_t _places)
     for(int i = 0; i < _places; i++)
         pos = _path.find_first_of('/', ++pos);
     _path = _path.substr(++pos, _path.npos);
+}
+
+bool util::isOnline()
+{
+    u32 ip;
+    return R_SUCCEEDED(nifmGetCurrentIpAddress(&ip));
 }
 
 std::string util::safeString(const std::string& s)
@@ -356,22 +357,21 @@ void util::checkForUpdate(void *a)
 {
     threadInfo *t = (threadInfo *)a;
     t->status->setStatus(ui::getUICString("threadStatusCheckingForUpdate", 0));
-    std::string gitJson = curlFuncs::getJSONURL(NULL, "https://api.github.com/repos/J-D-K/JKSV/releases/latest");
-    if(gitJson.empty())
+    http h;
+    std::stringstream ss;
+    int status = h.get("https://api.github.com/repos/J-D-K/JKSV/releases/latest", &ss);
+    if(status != 200)
     {
         ui::showPopMessage(POP_FRAME_DEFAULT, ui::getUICString("onlineErrorConnecting", 0));
         t->finished = true;
         return;
     }
 
-    std::string tagStr;
-    unsigned month, day, year;
-    json_object *jobj = json_tokener_parse(gitJson.c_str()), *tag;
+    json_object *jobj = json_tokener_parse(ss.str().c_str()), *tag;
     json_object_object_get_ex(jobj, "tag_name", &tag);
-    tagStr = json_object_get_string(tag);
-    getVersionFromTag(tagStr, year, month, day);
+    std::string tagStr = json_object_get_string(tag);
     //This can throw false positives as is. need to fix sometime
-    if(year > BLD_YEAR || month > BLD_MON || month > BLD_DAY)
+    if(BLD_VERSION.compare(tagStr) < 0)
     {
         t->status->setStatus(ui::getUICString("threadStatusDownloadingUpdate", 0));
         //dunno about NSP yet...
@@ -380,12 +380,9 @@ void util::checkForUpdate(void *a)
         asset0 = json_object_array_get_idx(assets, 0);
         json_object_object_get_ex(asset0, "browser_download_url", &dlUrl);
 
-        std::vector<uint8_t> jksvBuff;
-        std::string url = json_object_get_string(dlUrl);
-        curlFuncs::getBinURL(&jksvBuff, url);
-        FILE *jksvOut = fopen("sdmc:/switch/JKSV.nro", "wb");
-        fwrite(jksvBuff.data(), 1, jksvBuff.size(), jksvOut);
-        fclose(jksvOut);
+        std::ofstream jksvOut("sdmc:/switch/JKSV.nro");
+        h.get(json_object_get_string(dlUrl), &jksvOut);
+        jksvOut.close();
     }
     else
         ui::showPopMessage(POP_FRAME_DEFAULT, ui::getUICString("onlineNoUpdates", 0));
@@ -417,4 +414,12 @@ Result util::accountDeleteUser(AccountUid *uid)
     } in = {*uid};
 
     return serviceDispatchIn(account, 203, in);
+}
+
+std::string util::hexEncode(const unsigned char* data, size_t len) {
+    std::stringstream ss;
+    for (size_t i = 0; i < len; i++) {
+        ss << std::hex << std::setw(2) << std::setfill('0') << (int)data[i];
+    }
+    return ss.str();
 }

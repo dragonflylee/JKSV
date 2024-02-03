@@ -203,7 +203,7 @@ void ui::drawUI()
         gfx::drawTextf(NULL, 24, 130, 38, &ui::txtCont, "JKSV");
 
     //Version / translation author
-    gfx::drawTextf(NULL, 12, 8, 700, &ui::txtCont, "v. %02d.%02d.%04d", BLD_MON, BLD_DAY, BLD_YEAR);
+    gfx::drawTextf(NULL, 12, 8, 700, &ui::txtCont, "v. %s", BLD_VERSION.c_str());
     if(ui::getUIString("author", 0) != "NULL")
         gfx::drawTextf(NULL, 12, 8, 682, &ui::txtCont, "%s%s", ui::getUICString("translationMainPage", 0), ui::getUICString("author", 0));
 

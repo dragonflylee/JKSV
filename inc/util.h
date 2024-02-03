@@ -78,6 +78,8 @@ namespace util
     size_t getTotalPlacesInPath(const std::string& _path);
     void trimPath(std::string& _path, uint8_t _places);
 
+    bool isOnline();
+
     inline bool isASCII(const uint32_t& t)
     {
         return t > 30 && t < 127;
@@ -99,6 +101,8 @@ namespace util
 
     //For future external translation support. Replaces [button] with button chars
     void replaceButtonsInString(std::string& rep);
+
+    std::string hexEncode(const unsigned char* data, size_t len);
 
     //Creates a basic generic icon for stuff without one
     SDL_Texture *createIconGeneric(const char *txt, int fontSize, bool clearBack);

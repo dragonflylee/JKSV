@@ -7,9 +7,10 @@
 
 #include "gfx.h"
 
-#define BLD_MON 02
-#define BLD_DAY 23
-#define BLD_YEAR 2023
+#define STR_IMPL(x) #x
+#define STR(x) STR_IMPL(x)
+
+const std::string BLD_VERSION = STR(APP_VERSION);
 
 namespace data
 {

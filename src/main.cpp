@@ -19,6 +19,7 @@ extern "C"
         setInitialize();
         accountInitialize(AccountServiceType_Administrator);
         pmshellInitialize();
+        nifmInitialize(NifmServiceType_Admin);
         socketInitializeDefault();
         pdmqryInitialize();
     }
@@ -31,6 +32,7 @@ extern "C"
         setsysExit();
         setExit();
         accountExit();
+        nifmExit();
         pmshellExit();
         socketExit();
         pdmqryExit();
@@ -49,6 +51,11 @@ int main(int argc, const char *argv[])
     data::init();
     ui::init();
     romfsExit();
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-d") == 0) 
+            nxlinkStdio();
+    }
 
     curl_global_init(CURL_GLOBAL_ALL);
     //Drive needs config read

@@ -11,5 +11,4 @@ namespace fs
 
     void driveInit();
     void driveExit();
-    std::string driveSignInGetAuthCode();
 }

@@ -1,4 +1,5 @@
 #include <switch.h>
+#include <filesystem>
 
 #include "ui.h"
 #include "fs.h"
@@ -123,18 +124,12 @@ static void fldFuncUpload_t(void *a)
 
     //curlDlArgs
     curlFuncs::curlUpArgs upload;
-    upload.f = fopen(path.c_str(), "rb");
+    upload.size = std::filesystem::file_size(path);
     upload.o = &cpyArgs->offset;
+    upload.f.open(path);
 
-    if(fs::gDrive->fileExists(filename))
-    {
-        std::string id = fs::gDrive->getFileID(filename);
-        fs::gDrive->updateFile(id, &upload);
-    }
-    else
-        fs::gDrive->uploadFile(filename, driveParent, &upload);
-
-    fclose(upload.f);
+    fs::gDrive->uploadFile(filename, driveParent, &upload);
+    upload.f.close();
 
     if(!tmpZip.empty())
         fs::delfile(tmpZip);
@@ -181,8 +176,7 @@ static void fldFuncDownload_t(void *a)
 
     //DL struct
     curlFuncs::curlDlArgs dlFile;
-    dlFile.path = targetPath;
-    dlFile.size = in->size;
+    dlFile.f.open(targetPath);
     dlFile.o = &cpy->offset;
     
     fs::gDrive->downloadFile(in->id, &dlFile);
@@ -245,8 +239,7 @@ static void fldFuncDriveRestore_t(void *a)
     t->drawFunc = fs::fileDrawFunc;
 
     curlFuncs::curlDlArgs dlFile;
-    dlFile.path = "sdmc:/tmp.zip";
-    dlFile.size = gdi->size;
+    dlFile.f.open("sdmc:/tmp.zip");
     dlFile.o = &cpy->offset;
 
     fs::gDrive->downloadFile(gdi->id, &dlFile);
@@ -317,15 +310,17 @@ void ui::fldPopulateMenu()
     unsigned fldInd = 1;
     if(fs::gDrive)
     {
-        if(!fs::gDrive->dirExists(t->title, fs::jksvDriveID))
-            fs::gDrive->createDir(t->title, fs::jksvDriveID);
-
         driveParent = fs::gDrive->getDirID(t->title, fs::jksvDriveID);
-
-        fs::gDrive->getListWithParent(driveParent, driveFldList);
+        if(driveParent.empty()) {
+            driveParent = fs::gDrive->createDir(t->title, fs::jksvDriveID);
+            driveFldList.clear();
+        } else {
+            fs::gDrive->driveListInit(driveParent);
+            fs::gDrive->getListWithParent(driveParent, driveFldList);
+        }
         for(unsigned i = 0; i < driveFldList.size(); i++, fldInd++)
         {
-            fldMenu->addOpt(NULL, "[GD] " + driveFldList[i]->name);
+            fldMenu->addOpt(NULL, "[Cloud] " + driveFldList[i]->name);
 
             fldMenu->optAddButtonEvent(fldInd, HidNpadButton_A, fldFuncDownload, driveFldList[i]);
             fldMenu->optAddButtonEvent(fldInd, HidNpadButton_X, fldFuncDriveDelete, driveFldList[i]);
@@ -368,7 +363,7 @@ void ui::fldRefreshMenu()
 
         for(unsigned i = 0; i < driveFldList.size(); i++, fldInd++)
         {
-            fldMenu->addOpt(NULL, "[GD] " + driveFldList[i]->name);
+            fldMenu->addOpt(NULL, "[Cloud] " + driveFldList[i]->name);
 
             fldMenu->optAddButtonEvent(fldInd, HidNpadButton_A, fldFuncDownload, driveFldList[i]);
             fldMenu->optAddButtonEvent(fldInd, HidNpadButton_X, fldFuncDriveDelete, driveFldList[i]);

@@ -48,7 +48,7 @@ ICON		:=	icon.jpg
 ARCH	:=	-march=armv8-a+crc+crypto -mtune=cortex-a57 -mtp=soft -fPIE
 
 override CFLAGS	+=	`sdl2-config --cflags`	-g -Wall -O2 -ffunction-sections -ffast-math \
-			$(ARCH) $(DEFINES)
+			$(ARCH) $(DEFINES) -DAPP_VERSION=$(APP_VERSION)
 
 override CFLAGS	+=	$(INCLUDE) -D__SWITCH__ `freetype-config --cflags` `curl-config --cflags`
 
@@ -57,7 +57,7 @@ CXXFLAGS:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++17
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBS	:= `sdl2-config --libs` `freetype-config --libs` `curl-config --libs` -lSDL2_image -lwebp -lpng -ljpeg -lz -lminizip -ljson-c -lnx
+LIBS	:= `sdl2-config --libs` `freetype-config --libs` `curl-config --libs` -lSDL2_image -lwebp -lpng -ljpeg -lz -lminizip -lmbedcrypto -ljson-c -lnx
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing

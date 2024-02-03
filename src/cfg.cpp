@@ -15,7 +15,9 @@ std::vector<uint64_t> cfg::blacklist;
 std::vector<uint64_t> cfg::favorites;
 static std::unordered_map<uint64_t, std::string> pathDefs;
 uint8_t cfg::sortType;
-std::string cfg::driveClientID, cfg::driveClientSecret, cfg::driveRefreshToken;
+std::string cfg::driveClientID;
+std::string cfg::driveClientSecret;
+std::string cfg::driveRefreshToken;
 
 const char *cfgPath = "sdmc:/config/JKSV/JKSV.cfg", *titleDefPath = "sdmc:/config/JKSV/titleDefs.txt", *workDirLegacy = "sdmc:/switch/jksv_dir.txt";
 static std::unordered_map<std::string, unsigned> cfgStrings =
@@ -23,7 +25,7 @@ static std::unordered_map<std::string, unsigned> cfgStrings =
     {"workDir", 0}, {"includeDeviceSaves", 1}, {"autoBackup", 2}, {"overclock", 3}, {"holdToDelete", 4}, {"holdToRestore", 5},
     {"holdToOverwrite", 6}, {"forceMount", 7}, {"accountSystemSaves", 8}, {"allowSystemSaveWrite", 9}, {"directFSCommands", 10},
     {"exportToZIP", 11}, {"languageOverride", 12}, {"enableTrashBin", 13}, {"titleSortType", 14}, {"animationScale", 15},
-    {"favorite", 16}, {"blacklist", 17}, {"autoName", 18}, {"driveRefreshToken", 19},
+    {"favorite", 16}, {"blacklist", 17}, {"autoName", 18},
 };
 
 const std::string _true_ = "true", _false_ = "false";
@@ -309,16 +311,30 @@ static void loadDriveConfig()
 
     if(!clientSecretPath.empty())
     {
-        json_object *installed, *clientID, *clientSecret,*driveJSON = json_object_from_file(clientSecretPath.c_str());
-        json_object_object_get_ex(driveJSON, "installed", &installed);
-        json_object_object_get_ex(installed, "client_id", &clientID);
-        json_object_object_get_ex(installed, "client_secret", &clientSecret);
-
-        cfg::driveClientID = json_object_get_string(clientID);
-        cfg::driveClientSecret = json_object_get_string(clientSecret);
-
+        json_object *obj, *driveJSON = json_object_from_file(clientSecretPath.c_str());
+        if (json_object_object_get_ex(driveJSON, "client_id", &obj))
+            cfg::driveClientID = json_object_get_string(obj);
+        if (json_object_object_get_ex(driveJSON, "client_secret", &obj))
+            cfg::driveClientSecret = json_object_get_string(obj);
+        if (json_object_object_get_ex(driveJSON, "refresh_token", &obj))
+            cfg::driveRefreshToken = json_object_get_string(obj);
         json_object_put(driveJSON);
     }
+}
+
+void cfg::saveDriveConfig(const std::string& name) {
+    std::string clientSecretPath = "/config/JKSV/client_secret_" + name + ".json";
+    json_object* driveJSON = json_object_new_object();
+
+    if (!cfg::driveClientID.empty())
+        json_object_object_add(driveJSON, "client_id", json_object_new_string(cfg::driveClientID.c_str()));
+    if (!cfg::driveClientSecret.empty())
+        json_object_object_add(driveJSON, "client_secret", json_object_new_string(cfg::driveClientSecret.c_str()));
+    if (!cfg::driveRefreshToken.empty())
+        json_object_object_add(driveJSON, "refresh_token", json_object_new_string(cfg::driveRefreshToken.c_str()));
+
+    json_object_to_file(clientSecretPath.c_str(), driveJSON);
+    json_object_put(driveJSON);
 }
 
 void cfg::loadConfig()
@@ -434,10 +450,6 @@ void cfg::loadConfig()
                         cfg::config["autoName"] = textToBool(cfgRead.getNextValueStr());
                         break;
 
-                    case 19:
-                        cfg::driveRefreshToken = cfgRead.getNextValueStr();
-                        break;
-
                     case 20:
                         cfg::config["autoUpload"] = textToBool(cfgRead.getNextValueStr());
                         break;
@@ -480,9 +492,6 @@ void cfg::saveConfig()
     fprintf(cfgOut, "titleSortType = %s\n", sortTypeText().c_str());
     fprintf(cfgOut, "animationScale = %f\n", ui::animScale);
     fprintf(cfgOut, "autoUpload = %s\n", boolToText(cfg::config["autoUpload"]).c_str());
-
-    if(!cfg::driveRefreshToken.empty())
-        fprintf(cfgOut, "driveRefreshToken = %s\n", cfg::driveRefreshToken.c_str());
 
     if(!cfg::favorites.empty())
     {

@@ -16,6 +16,7 @@ namespace cfg
     void resetConfig();
     void loadConfig();
     void saveConfig();
+    void saveDriveConfig(const std::string& name);
 
     bool isBlacklisted(const uint64_t& tid);
     void addTitleToBlacklist(void *a);
