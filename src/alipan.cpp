@@ -13,9 +13,10 @@
 
 namespace drive {
 
-const std::string ALIPAN_PRE_AUTH = "https://auth.aliyundrive.com/v2/oauth/authorize?";
-const std::string ALIPAN_CALLBACK = "https://www.aliyundrive.com/sign/callback";
+const std::string ALIPAN_PRE_AUTH = "https://auth.alipan.com/v2/oauth/authorize?";
+const std::string ALIPAN_CALLBACK = "https://www.alipan.com/sign/callback";
 const std::string ALIPAN_CANARY = "X-Canary: client=windows,app=adrive,version=v4.12.0";
+const std::string ALIPAN_REFERER = "Referer: https://www.alipan.com/";
 
 alipan::~alipan() {}
 
@@ -280,10 +281,20 @@ bool alipan::downloadFile(const std::string& _fileID, curlFuncs::curlDlArgs* _do
     json_object* value;
     http c("Mozilla/5.0 aDrive/4.12.0");
     c.set_dl_cb(_download->o);
+    c.set_headers({
+        ALIPAN_REFERER,
+        ALIPAN_CANARY,
+        HEADER_AUTHORIZATION + this->accessToken,
+        "X-Device-Id: " + cfg::driveClientID,
+    });
 
     if (json_object_object_get_ex(resp, "url", &value)) {
-        c.get(json_object_get_string(value), &_download->f);
-        _download->f.flush();
+        const char *url = json_object_get_string(value);
+        int status = c.get(url, &_download->f);
+        printf("download %d: %s\n", status, url);
+        if (status == 200) {
+            _download->f.flush();
+        }
     }
     json_object_put(resp);
     return true;
@@ -294,6 +305,7 @@ json_object* alipan::request(const std::string& api, const std::string& data) {
     while (true) {
         std::vector<std::string> headers = {
             HEADER_CONTENT_TYPE_APP_JSON,
+            ALIPAN_REFERER,
             ALIPAN_CANARY,
         };
         if (this->accessToken.size() > 0) {
