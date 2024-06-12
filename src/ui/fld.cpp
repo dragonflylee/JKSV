@@ -178,10 +178,8 @@ static void fldFuncDownload_t(void *a)
     curlFuncs::curlDlArgs dlFile;
     dlFile.f.open(targetPath);
     dlFile.o = &cpy->offset;
-    
     fs::gDrive->downloadFile(in->id, &dlFile);
-
-    //fclose(dlFile.f);
+    dlFile.f.close();
 
     fs::copyArgsDestroy(cpy);
     t->drawFunc = NULL;
@@ -241,12 +239,13 @@ static void fldFuncDriveRestore_t(void *a)
     curlFuncs::curlDlArgs dlFile;
     dlFile.f.open("sdmc:/tmp.zip");
     dlFile.o = &cpy->offset;
-
     fs::gDrive->downloadFile(gdi->id, &dlFile);
+    dlFile.f.close();
 
     unzFile tmp = unzOpen64("sdmc:/tmp.zip");
     fs::copyZipToDir(tmp, "sv:/", "sv", t);
     unzClose(tmp);
+
     fs::delfile("sdmc:/tmp.zip");
 
     fs::copyArgsDestroy(cpy);

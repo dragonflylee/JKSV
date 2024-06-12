@@ -21,7 +21,6 @@ public:
     std::string getDirID(const std::string& _name, const std::string& _parent) override;
 
 private:
-    std::string accessToken;
     std::string driveId;
     std::string userId;
     std::string signature;

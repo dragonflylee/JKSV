@@ -13,16 +13,17 @@
 
 namespace drive {
 
-const std::string ALIPAN_PRE_AUTH = "https://auth.aliyundrive.com/v2/oauth/authorize?";
-const std::string ALIPAN_CALLBACK = "https://www.aliyundrive.com/sign/callback";
+const std::string ALIPAN_PRE_AUTH = "https://auth.alipan.com/v2/oauth/authorize?";
+const std::string ALIPAN_CALLBACK = "https://www.alipan.com/sign/callback";
 const std::string ALIPAN_CANARY = "X-Canary: client=windows,app=adrive,version=v4.12.0";
+const std::string ALIPAN_REFERER = "Referer: https://www.alipan.com/";
 
 alipan::~alipan() {}
 
 bool alipan::tokenIsValid() {
     if (!this->signature.empty()) return true;
 
-    if (!this->accessToken.empty()) {
+    if (!cfg::driveClientSecret.empty()) {
         if (this->getSelfuser()) return true;
     } else if (!cfg::driveRefreshToken.empty()) {
         if (this->refreshToken()) return true;
@@ -93,7 +94,7 @@ bool alipan::tokenIsValid() {
 
     json_object* value;
     if (json_object_object_get_ex(resp, "access_token", &value)) {
-        this->accessToken = json_object_get_string(value);
+        cfg::driveClientSecret = json_object_get_string(value);
     }
     if (json_object_object_get_ex(resp, "refresh_token", &value)) {
         cfg::driveRefreshToken = json_object_get_string(value);
@@ -278,26 +279,36 @@ bool alipan::downloadFile(const std::string& _fileID, curlFuncs::curlDlArgs* _do
     if (!resp) return false;
 
     json_object* value;
-    http c("Mozilla/5.0 aDrive/4.12.0");
+    http c;
     c.set_dl_cb(_download->o);
+    c.set_headers({
+        ALIPAN_REFERER,
+        ALIPAN_CANARY,
+        HEADER_AUTHORIZATION + cfg::driveClientSecret,
+        "X-Device-Id: " + cfg::driveClientID,
+    });
 
+    int status = -1;
     if (json_object_object_get_ex(resp, "url", &value)) {
-        c.get(json_object_get_string(value), &_download->f);
+        const char *url = json_object_get_string(value);
+        status = c.get(url, &_download->f);
+        printf("download %d: %s\n", status, url);
         _download->f.flush();
     }
     json_object_put(resp);
-    return true;
+    return status == 200;
 }
 
 json_object* alipan::request(const std::string& api, const std::string& data) {
-    http s("Mozilla/5.0 aDrive/4.12.0");
+    http s;
     while (true) {
         std::vector<std::string> headers = {
             HEADER_CONTENT_TYPE_APP_JSON,
+            ALIPAN_REFERER,
             ALIPAN_CANARY,
         };
-        if (this->accessToken.size() > 0) {
-            headers.push_back(HEADER_AUTHORIZATION + this->accessToken);
+        if (cfg::driveClientSecret.size() > 0) {
+            headers.push_back(HEADER_AUTHORIZATION + cfg::driveClientSecret);
         }
         if (cfg::driveClientID.size() > 0) {
             headers.push_back("X-Device-Id: " + cfg::driveClientID);
@@ -360,7 +371,7 @@ bool alipan::refreshToken() {
         cfg::driveRefreshToken = json_object_get_string(value);
     }
     if (json_object_object_get_ex(resp, "access_token", &value)) {
-        this->accessToken = json_object_get_string(value);
+        cfg::driveClientSecret = json_object_get_string(value);
     }
     json_object_put(resp);
 
@@ -430,7 +441,6 @@ bool alipan::createSession() {
     json_object_put(resp);
     if (!result) return false;
 
-    cfg::driveClientSecret = this->accessToken;
     cfg::saveDriveConfig("alipan");
 
     printf("create session (%s) result %d\n", nick.nickname, result);
